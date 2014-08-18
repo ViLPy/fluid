@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Fluid</title>
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+    <style>
+        canvas {
+            border: 1px solid #888;
+        }
+
+        .viewport {
+            text-align: center;
+            float: left;
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-default" role="navigation">
+    <div class="container-fluid">
+        <!-- Brand and toggle get grouped for better mobile display -->
+        <div class="navbar-header">
+            <div class="navbar-brand">Fluid</div>
+            <p class="navbar-text">Particle-based Fluid Simulation</p>
+        </div>
+    </div><!-- /.container-fluid -->
+</nav>
+
+<div class="container">
+    <div class="viewport">
+        <canvas height='300' width='200' id='myCanvas'></canvas>
+        <div>Time: <span id="time">0</span>s.</div>
+    </div>
+    <div class="col-sm-4 col-xs-6">
+    <form role="form">
+        <div class="form-group">
+            <label for="demoCase" class="control-label">Demo case</label>
+            <select class="form-control" id="demoCase">
+                <option value="demo1">Test 1</option>
+                <option value="demo2">Test 2 with initial velocity</option>
+                <option value="raindrop">Raindrop</option>
+                <option value="flatsplash">Flat splash</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <div class="btn-group">
+                <button type="button" class="btn btn-default" id="playSim" title="Play/Restart">
+                    <span class="glyphicon glyphicon-play"></span>
+                </button>
+                <button type="button" class="btn btn-default" id="pauseSim" title="Pause">
+                    <span class="glyphicon glyphicon-pause"></span>
+                </button>
+                <button type="button" class="btn btn-default" id="stepForward" title="Step Forward">
+                    <span class="glyphicon glyphicon-step-forward"></span>
+                </button>
+                <button type="button" class="btn btn-default" id="stopSim" title="Stop">
+                    <span class="glyphicon glyphicon-stop"></span>
+                </button>
+            </div>
+        </div>
+    </form>
+    </div>
+</div>
+
+<script src="js/common.js"></script>
+<script src="js/particle.js"></script>
+<script src="js/solver.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
