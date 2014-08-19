@@ -1,4 +1,6 @@
 (function() {
+    'use strict';
+
     var canvas = document.getElementById('myCanvas'),
         ctx = canvas.getContext('2d');
 
@@ -19,7 +21,7 @@
         time = 0;
         ctx.fillStyle = '#0000ff';
 
-        solver = new FluidSolver(width, height, []);
+        solver = new FluidSolver(width, height);
 
         switch (demoCase) {
             case 'demo1':
@@ -86,7 +88,6 @@
         ctx.rect(x, y, 1, 1);
         ctx.fill();
     }
-
 
     function getDemoCase() {
         return document.getElementById('demoCase').value;

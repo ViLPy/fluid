@@ -1,3 +1,5 @@
+'use strict';
+
 /* Misc. vector utils */
 function vectorLengthSquared(r) {
     return r.x * r.x + r.y * r.y;
