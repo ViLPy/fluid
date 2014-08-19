@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * FluidSolver based on 'Particle-based Viscoelastic Fluid Simulation' paper
  * by Simon Clavet, Philippe Beaudoin, and Pierre Poulin
@@ -6,17 +8,16 @@
  *
  * @param width - container width
  * @param height - container height
- * @param particles - initial particles
  * @constructor
  */
-function FluidSolver(width, height, particles) {
-    this._particles = particles || [];
+function FluidSolver(width, height) {
+    this._particles = [];
 
     this._width = width;
     this._height = height;
 
     this._h = 3.4; // interaction radius
-    this._rho0 = 15; // rest denstity
+    this._rho0 = 15; // rest density
     this._k = 0.5; // stiffness parameter
     this._kNear = 5; // near stiffness parameter
     this._sigma = 0; // linear viscosity
@@ -36,22 +37,12 @@ function FluidSolver(width, height, particles) {
     for (i = 0; i < (this._NGridWidth * this._NGridHeight); i++) {
         this._NGrid.push([]);
     }
-
-    for (i = 0; i< this._particles.length; i++) {
-        var particle = this._particles[i];
-        var index = this.getGridIndex(particle._x, particle._y);
-
-        particle._NIndex = index;
-        this._NGrid[index].push(i);
-    }
 }
 
-FluidSolver.prototype.addParticle = function(particle) {
-    var index = this.getGridIndex(particle._x, particle._y);
-    particle._NIndex = index;
-
+FluidSolver.prototype.addParticle = function (particle) {
+    this.updateParticleIndex(particle);
     this._particles.push(particle);
-    this._NGrid[index].push(this._particles.length - 1);
+    this._NGrid[particle._NIndex].push(this._particles.length - 1);
 };
 
 FluidSolver.prototype.solve = function (dt) {
@@ -111,19 +102,21 @@ FluidSolver.prototype.solve = function (dt) {
         }
 
         // update NGrid indices if needed
-        var indexPrev = this.getGridIndex(particle._x0, particle._y0),
-            indexNew = this.getGridIndex(particle._x, particle._y);
+        var indexPrev = particle._NIndex;
+
+        // update index to get new value
+        this.updateParticleIndex(particle);
+        var indexNew = particle._NIndex;
 
         if (indexPrev != indexNew) {
             this._NGrid[indexPrev].splice(this._NGrid[indexPrev].indexOf(i), 1);
             this._NGrid[indexNew].push(i);
-            particle._NIndex = indexNew;
         }
     }
 };
 
-FluidSolver.prototype.doubleDensityRelaxation = function(dt) {
-    var j, neighborIdx , neighbor, rij, rijLen, q,
+FluidSolver.prototype.doubleDensityRelaxation = function (dt) {
+    var j, neighborIdx , neighbor, rij, rijLen, q, coeff,
         particlesCount = this._particles.length;
 
     for (var i = 0; i < particlesCount; i++) {
@@ -131,7 +124,7 @@ FluidSolver.prototype.doubleDensityRelaxation = function(dt) {
         var rho = 0,
             rhoNear = 0;
 
-        if (this._Ni.hasOwnProperty(i.toString())) {
+        if (this._Ni[i]) {
             for (j = 0; j < this._Ni[i].length; j++) {
                 neighborIdx = this._Ni[i][j];
                 neighbor = this._particles[neighborIdx];
@@ -141,8 +134,9 @@ FluidSolver.prototype.doubleDensityRelaxation = function(dt) {
                 q = rijLen / this._h;
 
                 if (q < 1) {
-                    rho += Math.pow(1 - q, 2);
-                    rhoNear += Math.pow(1 - q, 3);
+                    coeff = 1 - q;
+                    rho += coeff * coeff;
+                    rhoNear += coeff * coeff * coeff;
                 }
             }
         }
@@ -152,7 +146,7 @@ FluidSolver.prototype.doubleDensityRelaxation = function(dt) {
 
         var dx = {x: 0, y: 0};
 
-        if (this._Ni.hasOwnProperty(i.toString())) {
+        if (this._Ni[i]) {
             for (j = 0; j < this._Ni[i].length; j++) {
                 neighborIdx = this._Ni[i][j];
                 neighbor = this._particles[neighborIdx];
@@ -162,7 +156,8 @@ FluidSolver.prototype.doubleDensityRelaxation = function(dt) {
                 q = rijLen / this._h;
 
                 if (q < 1) {
-                    var DCommon = dt*dt * (P*(1-q) + PNear*Math.pow(1-q, 2));
+                    coeff = 1 - q;
+                    var DCommon = dt * dt * (P * coeff + PNear * coeff * coeff);
                     var D = {x: rij.x * DCommon, y: rij.y * DCommon};
 
                     neighbor._x += D.x / 2;
@@ -179,13 +174,13 @@ FluidSolver.prototype.doubleDensityRelaxation = function(dt) {
     }
 };
 
-FluidSolver.prototype.applyViscosity = function(dt) {
+FluidSolver.prototype.applyViscosity = function (dt) {
     var keys = Object.keys(this._Ni),
         kTotal = keys.length;
 
-    for (var k = 0; k<kTotal; k++) {
+    for (var k = 0; k < kTotal; k++) {
         var i = keys[k];
-        if (this._Ni.hasOwnProperty(i)) {
+        if (this._Ni[i]) {
             var particle = this._particles[i];
             for (var j = 0; j < this._Ni[i].length; j++) {
                 var neighborIdx = this._Ni[i][j];
@@ -201,13 +196,13 @@ FluidSolver.prototype.applyViscosity = function(dt) {
                     var u = dotProductVectors(dv, rijNorm);
 
                     if (u > 0) {
-                        var common =  dt*(1-q)*(this._sigma*u + this._beta*u*u);
+                        var common = dt * (1 - q) * (this._sigma * u + this._beta * u * u);
                         var I = {x: rijNorm.x * common, y: rijNorm.y * common};
-                        particle._vx -= I.x/2;
-                        particle._vy -= I.y/2;
+                        particle._vx -= I.x / 2;
+                        particle._vy -= I.y / 2;
 
-                        neighbor._vx += I.x/2;
-                        neighbor._vy += I.y/2;
+                        neighbor._vx += I.x / 2;
+                        neighbor._vy += I.y / 2;
                     }
                 }
             }
@@ -216,61 +211,58 @@ FluidSolver.prototype.applyViscosity = function(dt) {
 };
 
 // Neighbor calculation
-FluidSolver.prototype.getGridIndex = function(x,y) {
-    return ~~(x / this._h) + this._NGridWidth * (~~(y/ this._h));
+FluidSolver.prototype.updateParticleIndex = function (particle) {
+    particle._NX = ~~(particle._x / this._h);
+    particle._NY = ~~(particle._y / this._h);
+    particle._NIndex = particle._NX + this._NGridWidth * particle._NY
 };
 
-FluidSolver.prototype.getNeighbors = function(index) {
+FluidSolver.prototype.getNeighbors = function (particle) {
     var gridWidth = this._NGridWidth,
         gridHeight = this._NGridHeight;
 
     var NGrid = this._NGrid;
 
-    var i = index % gridWidth,
-        j = (index - i) / gridWidth;
-
-    function indexer(i,j) {
-        return (i + gridWidth * j);
-    }
-
-    function getByIndex(i,j) {
+    function getByIndex(i, j) {
         if (i >= 0 && i < gridWidth
-            && j >= 0 && j < gridHeight)
-        {
-            return NGrid[indexer(i,j)];
+            && j >= 0 && j < gridHeight) {
+            return NGrid[i + gridWidth * j];
         } else {
             return [];
         }
     }
 
-    return this._NGrid[indexer(i,j)].concat(
-        getByIndex(i-1,j-1), getByIndex(i-1,j), getByIndex(i-1,j+1),
-        getByIndex(i,j-1), getByIndex(i,j+1),
-        getByIndex(i+1,j-1), getByIndex(i+1,j), getByIndex(i+1,j+1));
+    var i = particle._NX,
+        j = particle._NY;
+
+    return this._NGrid[particle._NIndex].concat(
+        getByIndex(i - 1, j - 1), getByIndex(i - 1, j), getByIndex(i - 1, j + 1),
+        getByIndex(i, j - 1), getByIndex(i, j + 1),
+        getByIndex(i + 1, j - 1), getByIndex(i + 1, j), getByIndex(i + 1, j + 1));
 };
 
 FluidSolver.prototype.findNeighbors = function () {
     var particlesCount = this._particles.length,
-        distanceToNeighbourSq = Math.pow(this._h, 2);
+        distanceToNeighbourSq = this._h * this._h;
 
     this._Ni = {};
 
     for (var i = 0; i < particlesCount; i++) {
         var particle = this._particles[i];
-        var neighborIndexes = this.getNeighbors(particle._NIndex);
+        var neighborIndexes = this.getNeighbors(particle);
         var neighborLength = neighborIndexes.length;
         for (var j = 0; j < neighborLength; j++) {
             var neighborIndex = neighborIndexes[j];
-            if (i === neighborIndex) continue;
+            if (i <= neighborIndex) continue;
             var particleToCheck = this._particles[neighborIndex];
             var distanceSq = particle.distanceSquaredTo(particleToCheck);
 
             if (distanceSq <= distanceToNeighbourSq) {
                 if (!this._Ni[i]) this._Ni[i] = [];
+                if (!this._Ni[neighborIndex]) this._Ni[neighborIndex] = [];
 
-                if (this._Ni[i].indexOf(neighborIndex) < 0) {
-                    this._Ni[i].push(neighborIndex);
-                }
+                this._Ni[i].push(neighborIndex);
+                this._Ni[neighborIndex].push(i);
             }
         }
 

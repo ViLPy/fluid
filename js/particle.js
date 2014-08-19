@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Particle model
  * @constructor
@@ -14,6 +16,11 @@ function Particle(x,y, vx, vy) {
     // velocity
     this._vx = vx || 0;
     this._vy = vy || 0;
+
+    // Neighbor grid indexing
+    this._NIndex = 0;
+    this._NX = 0;
+    this._NY = 0;
 }
 
 Particle.prototype.distanceSquaredTo = function(p2) {
