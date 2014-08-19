@@ -261,10 +261,8 @@ FluidSolver.prototype.findNeighbors = function () {
                 if (!this._Ni[i]) this._Ni[i] = [];
                 if (!this._Ni[neighborIndex]) this._Ni[neighborIndex] = [];
 
-                if (this._Ni[i].indexOf(neighborIndex) < 0) {
-                    this._Ni[i].push(neighborIndex);
-                    this._Ni[neighborIndex].push(i);
-                }
+                this._Ni[i].push(neighborIndex);
+                this._Ni[neighborIndex].push(i);
             }
         }
 
